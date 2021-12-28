@@ -1,0 +1,200 @@
+
+#version 400
+layout(quads, fractional_even_spacing, cw) in;
+
+struct Cam
+{
+	vec4 ori;
+	vec3 pos;
+};
+
+in TESvar{
+    vec2 merge;
+} tesVar[];
+
+
+
+uniform int terrainSize;
+uniform vec3 center;
+uniform mat4 projection;
+uniform Cam cam;
+
+uniform sampler2D heightmap;
+
+
+out float fragTerrainSize;
+out vec3 fragWorldPos;
+out vec3 fragObjectPos;
+out vec2 merge;
+
+//out vec3 fragNorm;
+
+out vec2 uv;
+
+
+vec4 quatRotate(vec4 action, vec4 victim)
+{
+	float ar = action.x;	float br = victim.x;
+	vec3 av = action.yzw;	vec3 bv = victim.yzw;
+	return vec4(ar*br - dot(av,bv), ar*bv + br*av + cross(av,bv));
+}
+
+float heightFromTex(float x, float z)
+{
+		vec2 texPos = vec2( (x + terrainSize/2)/terrainSize, (z + terrainSize/2)/terrainSize );
+		vec4 heightColor = texture(heightmap,texPos);
+		float ans = ((heightColor.r + heightColor.g + heightColor.b)/3.0)*2 - 1;
+		ans = ans * terrainSize/4;
+		return ans;
+		
+}
+
+float interpolateHeightU(vec2 uv, float stepSize, vec4 p[4], vec3 center, float currHeight, float mergeY)
+{
+		float u = uv[0];
+		float v = uv[1];
+
+		if(mergeY == -1 && v > 0.7)
+		{
+				float u1 = u - 1.0/stepSize; 
+				vec4 interpolatedPos1 = p[0] * (1-u1) * (1-v) + p[1] * u1 * (1-v) + p[3] * v * (1-u1) + p[2] * u1 * v;
+
+				float u2 = u + 1.0/stepSize; 
+				vec4 interpolatedPos2 = p[0] * (1-u2) * (1-v) + p[1] * u2 * (1-v) + p[3] * v * (1-u2) + p[2] * u2 * v;
+		
+				vec3 worldPos1 = interpolatedPos1.xyz + center;
+				vec3 worldPos2 = interpolatedPos2.xyz + center;
+
+				worldPos1.y = heightFromTex(worldPos1.x, worldPos1.z);
+				worldPos2.y = heightFromTex(worldPos2.x, worldPos2.z);
+
+				float half = (worldPos1.y + worldPos2.y)/2.0;
+				float mixer = (v - 0.7)/0.3;	// change range to 0 - 1
+				//return mix(currHeight,half,mixer);
+				return half;
+		}
+
+		if(mergeY == 1 && v < 0.3)
+		{
+				float u1 = u - 1.0/stepSize; 
+				vec4 interpolatedPos1 = p[0] * (1-u1) * (1-v) + p[1] * u1 * (1-v) + p[3] * v * (1-u1) + p[2] * u1 * v;
+
+				float u2 = u + 1.0/stepSize; 
+				vec4 interpolatedPos2 = p[0] * (1-u2) * (1-v) + p[1] * u2 * (1-v) + p[3] * v * (1-u2) + p[2] * u2 * v;
+		
+				vec3 worldPos1 = interpolatedPos1.xyz + center;
+				vec3 worldPos2 = interpolatedPos2.xyz + center;
+
+				worldPos1.y = heightFromTex(worldPos1.x, worldPos1.z);
+				worldPos2.y = heightFromTex(worldPos2.x, worldPos2.z);
+
+				float half = (worldPos1.y + worldPos2.y)/2.0;
+				float mixer = (v)/0.3;	// change range to 0 - 1
+				//return mix(currHeight,half,mixer);
+				return half;
+		}
+
+		return currHeight;
+}
+
+float interpolateHeightV(vec2 uv, float stepSize, vec4 p[4], vec3 center, float currHeight, float mergeX)
+{
+		float u = uv[0];
+		float v = uv[1];
+
+		if(mergeX == 1 && u > 0.7)
+		{
+				float v1 = v - 1.0/stepSize; 
+				vec4 interpolatedPos1 = p[0] * (1-u) * (1-v1) + p[1] * u * (1-v1) + p[3] * v1 * (1-u) + p[2] * u * v1;
+
+				float v2 = v + 1.0/stepSize; 
+				vec4 interpolatedPos2 = p[0] * (1-u) * (1-v2) + p[1] * u * (1-v2) + p[3] * v2 * (1-u) + p[2] * u * v2;
+		
+				vec3 worldPos1 = interpolatedPos1.xyz + center;
+				vec3 worldPos2 = interpolatedPos2.xyz + center;
+
+				worldPos1.y = heightFromTex(worldPos1.x, worldPos1.z);
+				worldPos2.y = heightFromTex(worldPos2.x, worldPos2.z);
+
+				float half = (worldPos1.y + worldPos2.y)/2.0;
+				float mixer = (u - 0.7)/0.3;	// change range to 0 - 1
+				//return mix(currHeight,half,mixer);
+				return half;
+		}
+
+		if(mergeX == -1 && u < 0.3)
+		{
+				float v1 = v - 1.0/stepSize; 
+				vec4 interpolatedPos1 = p[0] * (1-u) * (1-v1) + p[1] * u * (1-v1) + p[3] * v1 * (1-u) + p[2] * u * v1;
+
+				float v2 = v + 1.0/stepSize; 
+				vec4 interpolatedPos2 = p[0] * (1-u) * (1-v2) + p[1] * u * (1-v2) + p[3] * v2 * (1-u) + p[2] * u * v2;
+		
+				vec3 worldPos1 = interpolatedPos1.xyz + center;
+				vec3 worldPos2 = interpolatedPos2.xyz + center;
+
+				worldPos1.y = heightFromTex(worldPos1.x, worldPos1.z);
+				worldPos2.y = heightFromTex(worldPos2.x, worldPos2.z);
+
+				float half = (worldPos1.y + worldPos2.y)/2.0;
+				float mixer = (u)/0.3;	// change range to 0 - 1
+			//	return mix(currHeight,half,mixer);
+				return half;
+		}
+
+		return currHeight;
+}
+
+
+void main()
+{
+		float u = gl_TessCoord.x;
+		float v = gl_TessCoord.y;
+
+		uv[0] = u;
+		uv[1] = v;
+		
+		vec4 p[4];
+		p[0] = gl_in[0].gl_Position;
+	    p[1] = gl_in[1].gl_Position;
+	    p[2] = gl_in[2].gl_Position;
+	    p[3] = gl_in[3].gl_Position;
+		// Linear interpolation
+		vec4 interpolatedPos =
+		p[0] * (1-u) * (1-v) +
+		p[1] * u * (1-v) +
+		p[3] * v * (1-u) +
+		p[2] * u * v;
+
+		merge = tesVar[0].merge;
+
+
+		vec3 objectPos = interpolatedPos.xyz;
+		fragObjectPos = objectPos;
+		
+		vec3 worldPos = objectPos + center;
+
+		worldPos.y = heightFromTex(worldPos.x, worldPos.z);
+		
+		//worldPos.y = interpolateHeightU(vec2(u,v), 4, p, center, worldPos.y, tesVar[0].merge.y);
+		//worldPos.y = interpolateHeightV(vec2(u,v), 4, p, center, worldPos.y, tesVar[0].merge.x);
+
+		//worldPos.y = worldPos.y * terrainSize/4;
+
+		fragTerrainSize = terrainSize;
+		fragWorldPos = worldPos;
+
+		vec3 viewPos = worldPos - cam.pos;
+		vec4 quatView = vec4(0,viewPos);
+		vec4 oriQuat = vec4(cam.ori.x, -cam.ori.yzw);
+		vec4 oriQuatInv = vec4(cam.ori);
+
+		quatView = quatRotate(quatView, oriQuatInv);
+		quatView = quatRotate(oriQuat, quatView);
+
+
+		vec4 projectedPos = projection * vec4(quatView.yzw,1.0);
+
+		gl_Position = projectedPos;
+	
+}

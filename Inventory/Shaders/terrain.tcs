@@ -1,0 +1,26 @@
+#version 400
+
+layout (vertices = 4) out;
+
+uniform int iLOD;
+uniform int oLOD_N; // 2
+uniform int oLOD_E; // 1
+uniform int oLOD_W; // 3
+uniform int oLOD_S; // 0
+
+void main(void)
+{
+    if (gl_InvocationID == 0) // to not do same stuff 4 times
+    {
+        // calculate A, B, C, D,E, F - based on your algorithm, or just set constants
+        // set 2 innner tess. levels
+        gl_TessLevelInner[0] = iLOD;
+        gl_TessLevelInner[1] = iLOD;
+        // set 4 outer tess. levels (for each edge)
+        gl_TessLevelOuter[0] = oLOD_S;
+        gl_TessLevelOuter[1] = oLOD_E;
+        gl_TessLevelOuter[2] = oLOD_N;
+        gl_TessLevelOuter[3] = oLOD_W;
+    }
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+}
